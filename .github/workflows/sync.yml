@@ -1,0 +1,26 @@
+name: Upstream Sync
+
+on:
+  scheduled:
+    - cron: "0 */6 * * *" # Berjalan otomatis setiap 6 jam sekali
+  workflow_dispatch: # Memungkinkan Anda untuk menjalankan sinkronisasi secara manual dari tab Actions
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout target repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Sync with upstream repository
+        uses: dabreadman/sync-upstream-repo@v1.3.0
+        with:
+          upstream_repo: "https://github.com/apistech/project.git"
+          upstream_branch: "main" # Ganti dengan branch utama sumber jika bukan 'main' (misal: 'master')
+          branch: "main"
+          token: ${{ secrets.GITHUB_TOKEN }}
