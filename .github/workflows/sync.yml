@@ -2,8 +2,8 @@ name: Upstream Sync
 
 on:
   schedule:
-    - cron: "0 */6 * * *" # Berjalan otomatis setiap 6 jam
-  workflow_dispatch: # Tombol manual di tab Actions
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
 
 jobs:
   sync:
@@ -22,7 +22,7 @@ jobs:
           git remote add upstream https://github.com/apistech/project.git
           git fetch upstream
           git checkout main || git checkout master
-          git merge upstream/main || git merge upstream/master
+          git merge upstream/main --allow-unrelated-histories -m "Sync upstream changes" || git merge upstream/master --allow-unrelated-histories -m "Sync upstream changes"
           git push origin main || git push origin master
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
