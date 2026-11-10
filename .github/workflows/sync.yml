@@ -2,8 +2,8 @@ name: Upstream Sync
 
 on:
   schedule:
-    - cron: "0 */6 * * *" # Berjalan otomatis setiap 6 jam sekali
-  workflow_dispatch: # Memungkinkan Anda menjalankan sinkronisasi secara manual
+    - cron: "0 */6 * * *" # Berjalan otomatis setiap 6 jam
+  workflow_dispatch: # Tombol manual di tab Actions
 
 jobs:
   sync:
@@ -12,15 +12,17 @@ jobs:
       contents: write
 
     steps:
-      - name: Checkout target repository
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          persist-credentials: false
+          persist-credentials: true
 
-      - name: Sync with upstream repository
-        uses: dabreadman/sync-upstream-repo@v1.3.0
-        with:
-          upstream_repo: "https://github.com/apistech/project.git"
-          upstream_branch: "main"
-          branch: "main"
-          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Pull upstream changes
+        run: |
+          git remote add upstream https://github.com/apistech/project.git
+          git fetch upstream
+          git checkout main || git checkout master
+          git merge upstream/main || git merge upstream/master
+          git push origin main || git push origin master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
