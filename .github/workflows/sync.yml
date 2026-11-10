@@ -1,9 +1,9 @@
 name: Upstream Sync
 
 on:
-  scheduled:
+  schedule:
     - cron: "0 */6 * * *" # Berjalan otomatis setiap 6 jam sekali
-  workflow_dispatch: # Memungkinkan Anda untuk menjalankan sinkronisasi secara manual dari tab Actions
+  workflow_dispatch: # Memungkinkan Anda menjalankan sinkronisasi secara manual
 
 jobs:
   sync:
@@ -21,6 +21,6 @@ jobs:
         uses: dabreadman/sync-upstream-repo@v1.3.0
         with:
           upstream_repo: "https://github.com/apistech/project.git"
-          upstream_branch: "main" # Ganti dengan branch utama sumber jika bukan 'main' (misal: 'master')
+          upstream_branch: "main"
           branch: "main"
           token: ${{ secrets.GITHUB_TOKEN }}
