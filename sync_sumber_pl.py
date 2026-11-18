@@ -1,7 +1,6 @@
 import os
 import re
 import io
-import json
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import requests
@@ -89,10 +88,10 @@ MAX_WORKERS = 25
 def get_drive_service():
     creds = Credentials(
         token=None,
-        refresh_token=os.environ["GDRIVE_REFRESH_TOKEN"],
+        refresh_token=os.environ["REFRESH_TOKEN"],
         token_uri="https://oauth2.googleapis.com/token",
-        client_id=os.environ["GDRIVE_CLIENT_ID"],
-        client_secret=os.environ["GDRIVE_CLIENT_SECRET"],
+        client_id=os.environ["CLIENT_ID"],
+        client_secret=os.environ["CLIENT_SECRET"],
         scopes=["https://www.googleapis.com/auth/drive"],
     )
     creds.refresh(Request())
@@ -235,7 +234,6 @@ def main():
 
         owner_stats[owner]["total"] += len(entries)
 
-        # Cek aktif secara paralel
         unique_urls = list({e["url"] for e in entries})
         active_map = {}
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
@@ -252,7 +250,6 @@ def main():
                     owner_stats[owner]["nasional"].append(e)
                     all_nasional_entries.append(e)
 
-    # Upload ke Kumpulan Sumber & Kumpulan Siaran Nasional per Owner
     for owner, data in owner_stats.items():
         owner_folder_id = get_or_create_folder(service, owner, FOLDER_KUMPULAN_SUMBER_ID)
 
