@@ -1,28 +1,31 @@
-name: Upstream Sync
+name: ZeroTV Sync Sumber PL to Google Drive
 
 on:
   schedule:
-    - cron: "0 */6 * * *"
+    - cron: '0 */1 * * *'
   workflow_dispatch:
 
 jobs:
-  sync:
+  sync-sumber-pl:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          persist-credentials: true
 
-      - name: Pull upstream changes
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
         run: |
-          git remote add upstream https://github.com/apistech/project.git
-          git fetch upstream
-          git checkout main || git checkout master
-          git merge upstream/main --allow-unrelated-histories -m "Sync upstream changes" || git merge upstream/master --allow-unrelated-histories -m "Sync upstream changes"
-          git push origin main || git push origin master
+          pip install --no-cache-dir requests google-api-python-client google-auth google-auth-oauthlib
+
+      - name: Run ZeroTV Sumber PL Sync
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GDRIVE_CLIENT_ID: ${{ secrets.GDRIVE_CLIENT_ID }}
+          GDRIVE_CLIENT_SECRET: ${{ secrets.GDRIVE_CLIENT_SECRET }}
+          GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
+        run: |
+          python sync_sumber_pl.py
