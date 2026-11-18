@@ -37,6 +37,7 @@ SOURCES = [
         "owner": "dearbulut",
         "repo": "dearbulut/iptv",
         "url": "https://dearbulut.github.io/iptv/playlists/online.m3u",
+        "skip_recheck": True,  # Sudah lolos health-check dari repo asal (ribuan channel)
     },
     {
         "owner": "BuddyChewChew",
@@ -80,9 +81,9 @@ NASIONAL_PATTERN = re.compile(
 )
 
 HEADERS = {"User-Agent": "TiviMate/4.7.0 (Android)"}
-TIMEOUT_FETCH = 20
-TIMEOUT_CHECK = 6
-MAX_WORKERS = 25
+TIMEOUT_FETCH = 15
+TIMEOUT_CHECK = 3
+MAX_WORKERS = 100
 
 
 def get_drive_service():
@@ -189,12 +190,14 @@ def check_stream(url):
         r = requests.head(url, headers=HEADERS, timeout=TIMEOUT_CHECK, allow_redirects=True)
         if r.status_code in (200, 206, 301, 302):
             return True
-        r = requests.get(
-            url, headers=HEADERS, timeout=TIMEOUT_CHECK, stream=True, allow_redirects=True
-        )
-        ok = r.status_code in (200, 206)
-        r.close()
-        return ok
+        if r.status_code in (403, 405, 501):
+            r = requests.get(
+                url, headers=HEADERS, timeout=TIMEOUT_CHECK, stream=True, allow_redirects=True
+            )
+            ok = r.status_code in (200, 206)
+            r.close()
+            return ok
+        return False
     except requests.RequestException:
         return False
 
@@ -213,6 +216,7 @@ def build_m3u_content(entries):
 
 
 def main():
+    print("Memulai sinkronisasi ZeroTV Sumber PL...", flush=True)
     service = get_drive_service()
     all_nasional_entries = []
     owner_stats = defaultdict(
@@ -225,22 +229,28 @@ def main():
         owner_stats[owner]["urls"].append(src["url"])
 
         try:
+            print(f"[FETCH] {src['repo']} -> {src['url']}", flush=True)
             resp = requests.get(src["url"], headers=HEADERS, timeout=TIMEOUT_FETCH)
             resp.raise_for_status()
             entries = parse_m3u(resp.text)
         except Exception as exc:
-            print(f"[SKIP] {src['url']} -> {exc}")
+            print(f"[SKIP] {src['url']} -> {exc}", flush=True)
             continue
 
         owner_stats[owner]["total"] += len(entries)
 
-        unique_urls = list({e["url"] for e in entries})
-        active_map = {}
-        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
-            future_to_url = {pool.submit(check_stream, u): u for u in unique_urls}
-            for fut in as_completed(future_to_url):
-                u = future_to_url[fut]
-                active_map[u] = fut.result()
+        if src.get("skip_recheck"):
+            print(f"  -> {len(entries)} siaran (lolos health-check asal)", flush=True)
+            active_map = {e["url"]: True for e in entries}
+        else:
+            unique_urls = list({e["url"] for e in entries})
+            print(f"  -> Mengecek {len(unique_urls)} stream unik...", flush=True)
+            active_map = {}
+            with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
+                future_to_url = {pool.submit(check_stream, u): u for u in unique_urls}
+                for fut in as_completed(future_to_url):
+                    u = future_to_url[fut]
+                    active_map[u] = fut.result()
 
         for e in entries:
             if active_map.get(e["url"], False):
@@ -251,6 +261,7 @@ def main():
                     all_nasional_entries.append(e)
 
     for owner, data in owner_stats.items():
+        print(f"[UPLOAD] Owner: {owner} ({data['active']}/{data['total']} aktif)", flush=True)
         owner_folder_id = get_or_create_folder(service, owner, FOLDER_KUMPULAN_SUMBER_ID)
 
         summary_lines = [
@@ -287,6 +298,7 @@ def main():
             )
 
     if all_nasional_entries:
+        print(f"[UPLOAD] Semua_Siaran_Nasional_Aktif.m3u ({len(all_nasional_entries)} siaran)", flush=True)
         upload_or_update_text(
             service,
             "Semua_Siaran_Nasional_Aktif.m3u",
@@ -295,7 +307,7 @@ def main():
             "audio/x-mpegurl",
         )
 
-    print("Sinkronisasi Sumber PL ke Google Drive selesai.")
+    print("Sinkronisasi Sumber PL ke Google Drive selesai.", flush=True)
 
 
 if __name__ == "__main__":
